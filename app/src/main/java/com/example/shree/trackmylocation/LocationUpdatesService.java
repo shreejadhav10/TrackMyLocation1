@@ -111,10 +111,31 @@ public class LocationUpdatesService extends Service {
         }
         cursor.close();
 
+
+        String latLong1[]=new String[2];
+
+
+        String sqlGetLastTwoRecords="SELECT latitude ||'#'|| longitude as latLong FROM "+TrackMyLocationContract.TripDetails.TABLE_NAME
+                +" WHERE " + TrackMyLocationContract.TripDetails.COLUMN_NAME_TRIP_ID + "=" + mTrip._id+" ORDER BY _id desc LIMIT 2 ";
+        Cursor cursorDistance=sqliteDatabase.rawQuery(sqlGetLastTwoRecords,null);
+
+        if(cursorDistance.moveToFirst()){
+            do {
+                latLong1[cursorDistance.getPosition()]=cursorDistance.getString(0);
+            }while (cursor.moveToNext());
+        }
+
+        cursorDistance.close();
+
+        double distance=GetDistanceFromLatLonInKm(latLong1);
+
         ContentValues contentValues = new ContentValues();
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_MAX_SPEED, maxSpeed);
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_AVG_SPEED, avgSpeed);
+        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_DISTANCE, distance);
         sqliteDatabase.update(TrackMyLocationContract.Trip.TABLE_NAME, contentValues, "_id=" + mTrip._id, null);
+
+
 
         DatabaseManager.getInstance().closeDatabase();
     }
@@ -140,13 +161,19 @@ public class LocationUpdatesService extends Service {
         }
     }
 
-    public double GetDistanceFromLatLonInKm(double lat1, double lon1, double lat2, double lon2) {
+    public double GetDistanceFromLatLonInKm(String[] latLong1) {
+        if (latLong1[1]==null)return 0.0;
+
+        String latLongOld[]=latLong1[1].split("#");
+        String latLongNew[]=latLong1[0].split("#");
+
+
         final int R = 6371;
         // Radius of the earth in km
-        double dLat = deg2rad(lat2 - lat1);
+        double dLat = deg2rad(Double.parseDouble(latLongNew[0])-Double.parseDouble(latLongOld[0]));
         // deg2rad below
-        double dLon = deg2rad(lon2 - lon1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double dLon = deg2rad(Double.parseDouble(latLongNew[1]) - Double.parseDouble(latLongOld[1]));
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(deg2rad(Double.parseDouble(latLongOld[0]))) * Math.cos(deg2rad(Double.parseDouble(latLongNew[0])) * Math.sin(dLon / 2) * Math.sin(dLon / 2));
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         double d = R * c;
         // Distance in km

@@ -99,22 +99,22 @@ public class LocationUpdatesService extends Service {
     };
 
     private void updateTrip() {
-        String maxSpeed=null,avgSpeed = null;
-        SQLiteDatabase sqliteDatabase=DatabaseManager.getInstance().openDatabase();
-        String sql="SELECT MAX("+TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED+") as max_speed, AVG("+TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED+") as avg_speed "
-                +" FROM "+TrackMyLocationContract.TripDetails.TABLE_NAME
-                +" WHERE "+TrackMyLocationContract.TripDetails.COLUMN_NAME_TRIP_ID+"="+mTrip._id;
-        Cursor cursor=sqliteDatabase.rawQuery(sql,null);
-        if (cursor.moveToFirst()){
-            maxSpeed=cursor.getString(0);
-            avgSpeed=cursor.getString(1);
+        String maxSpeed = null, avgSpeed = null;
+        SQLiteDatabase sqliteDatabase = DatabaseManager.getInstance().openDatabase();
+        String sql = "SELECT MAX(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED + ") as max_speed, AVG(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED + ") as avg_speed "
+                + " FROM " + TrackMyLocationContract.TripDetails.TABLE_NAME
+                + " WHERE " + TrackMyLocationContract.TripDetails.COLUMN_NAME_TRIP_ID + "=" + mTrip._id;
+        Cursor cursor = sqliteDatabase.rawQuery(sql, null);
+        if (cursor.moveToFirst()) {
+            maxSpeed = cursor.getString(0);
+            avgSpeed = cursor.getString(1);
         }
         cursor.close();
 
-        ContentValues contentValues=new ContentValues();
-        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_MAX_SPEED,maxSpeed);
-        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_AVG_SPEED,avgSpeed);
-        sqliteDatabase.update(TrackMyLocationContract.Trip.TABLE_NAME,contentValues,"_id="+mTrip._id,null);
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_MAX_SPEED, maxSpeed);
+        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_AVG_SPEED, avgSpeed);
+        sqliteDatabase.update(TrackMyLocationContract.Trip.TABLE_NAME, contentValues, "_id=" + mTrip._id, null);
 
         DatabaseManager.getInstance().closeDatabase();
     }
@@ -138,6 +138,23 @@ public class LocationUpdatesService extends Service {
         } finally {
             DatabaseManager.getInstance().closeDatabase();
         }
+    }
+
+    public double GetDistanceFromLatLonInKm(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371;
+        // Radius of the earth in km
+        double dLat = deg2rad(lat2 - lat1);
+        // deg2rad below
+        double dLon = deg2rad(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double d = R * c;
+        // Distance in km
+        return d;
+    }
+
+    private double deg2rad(double deg) {
+        return deg * (Math.PI / 180);
     }
 
     @Override
@@ -169,9 +186,11 @@ public class LocationUpdatesService extends Service {
     public int getRandomNumber() {
         return mRandom.nextInt(1);
     }
-    public void setTripDetails(Trip trip){
-        mTrip=trip;
+
+    public void setTripDetails(Trip trip) {
+        mTrip = trip;
     }
+
     public void startTracking(Trip trip) {
         mTrip = trip;
         startLocationUpdates();

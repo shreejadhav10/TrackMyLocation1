@@ -75,7 +75,16 @@ public class TrackActivity extends AppCompatActivity implements LocationUpdatesS
 
     private void setTripDetails() {
         mFabStart.setTag("2");
-        createLapsedTimer(new Date(new Date().getTime()-mTrip.startTime.getTime()));
+        long elapsedTime=(new Date().getTime()-mTrip.startTime.getTime())/1000;
+        Date elapsedDate=new Date(elapsedTime);
+        elapsedDate.setYear(0);
+        elapsedDate.setMonth(0);
+        elapsedDate.setDate(0);
+        elapsedDate.setHours(0);
+        elapsedDate.setMinutes(0);
+        elapsedDate.setSeconds((int)elapsedTime);
+
+        createLapsedTimer(elapsedDate);
     }
 
     private void getTripDetails() {

@@ -16,7 +16,6 @@ import com.example.shree.trackmylocation.Model.Trip;
 import com.example.shree.trackmylocation.db.DatabaseManager;
 import com.example.shree.trackmylocation.db.TrackMyLocationContract;
 import com.example.shree.trackmylocation.pref.Pref;
-import com.facebook.stetho.inspector.database.SqliteDatabaseDriver;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationAvailability;
 import com.google.android.gms.location.LocationCallback;
@@ -101,7 +100,7 @@ public class LocationUpdatesService extends Service {
     private void updateTrip() {
         String maxSpeed = null, avgSpeed = null;
         SQLiteDatabase sqliteDatabase = DatabaseManager.getInstance().openDatabase();
-        String sql = "SELECT MAX(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED + ") as max_speed, AVG(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED + ") as avg_speed "
+        String sql = "SELECT MAX(CAST(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED +" AS real)"+ ") as max_speed, AVG(CAST(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED +" AS real)"+ ") as avg_speed "
                 + " FROM " + TrackMyLocationContract.TripDetails.TABLE_NAME
                 + " WHERE " + TrackMyLocationContract.TripDetails.COLUMN_NAME_TRIP_ID + "=" + mTrip._id;
         Cursor cursor = sqliteDatabase.rawQuery(sql, null);

@@ -7,13 +7,14 @@ import android.database.sqlite.SQLiteDatabase;
 import com.example.shree.trackmylocation.db.DatabaseManager;
 import com.example.shree.trackmylocation.db.TrackMyLocationContract;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * Created by Shree on 4/1/2018.
  */
 
-public class Trip {
+public class Trip implements Serializable {
     public long _id;
     public String tripName = "trips";
     public Date tripDate;

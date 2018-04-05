@@ -1,9 +1,214 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context="com.example.shree.trackmylocation.TripDetailsActivity">
 
 
-</android.support.constraint.ConstraintLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+
+        <TextView
+            android:id="@+id/mTxtTitle"
+            style="@style/Base.TextAppearance.AppCompat.Medium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/normal_padding"
+            android:text="Title"
+            android:textColor="@color/colorAccent"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/mTxtTripDate"
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingLeft="@dimen/normal_padding"
+            android:text="Start Date" />
+
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layoutDirection="ltr"
+        android:orientation="horizontal">
+
+
+        <TextView
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:gravity="right"
+            android:padding="@dimen/normal_padding"
+            android:text="Total distance covered"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/mTxtDistanceCovered"
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:paddingLeft="@dimen/normal_padding"
+            android:text="Start Date" />
+
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+
+        <TextView
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:gravity="right"
+            android:padding="@dimen/normal_padding"
+            android:text="Total Time Elapsed"
+            android:textStyle="bold" />
+
+        <TextView
+
+            android:id="@+id/mTxtTimeElapsed"
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:paddingLeft="@dimen/normal_padding"
+            android:text="Start Date" />
+
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+
+        <TextView
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:gravity="right"
+            android:padding="@dimen/normal_padding"
+            android:text="Max. speed"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/mTxtMaxSpeed"
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:paddingLeft="@dimen/normal_padding"
+            android:text="Start Date" />
+
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+
+        <TextView
+
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:gravity="right"
+            android:padding="@dimen/normal_padding"
+            android:text="Avg Speed"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/mTxtAvgSpeed"
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:paddingLeft="@dimen/normal_padding"
+            android:text="Start Date" />
+
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+
+        <TextView
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="right"
+            android:padding="@dimen/normal_padding"
+            android:text="Start time"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/mTxtStartTime"
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:paddingLeft="@dimen/normal_padding"
+            android:text="Start Date" />
+
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+
+        <TextView
+
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="right"
+            android:padding="@dimen/normal_padding"
+            android:text="End Time"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/mTxtEndTime"
+            style="@style/Base.TextAppearance.AppCompat.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:paddingLeft="@dimen/normal_padding"
+            android:text="Start Date" />
+
+
+    </LinearLayout>
+
+
+</LinearLayout>

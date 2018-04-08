@@ -19,7 +19,7 @@ public class Trip implements Serializable {
     public String tripName = "trips";
     public Date tripDate;
     public String distance;
-    public String timeElapsed;
+    public Date timeElapsed;
     public String maxSpeed;
     public String avgSpeed;
     public Date startTime;
@@ -30,7 +30,7 @@ public class Trip implements Serializable {
         tripName=cursor.getString(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_TRIP_NAME));
         tripDate=new Date(cursor.getLong(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_TRIP_DATE)));
         distance=cursor.getString(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_DISTANCE));
-        timeElapsed=cursor.getString(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_TIME_ELAPSED));
+        timeElapsed=new Date(cursor.getLong(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_TIME_ELAPSED)));
         maxSpeed=cursor.getString(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_MAX_SPEED));
         avgSpeed=cursor.getString(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_AVG_SPEED));
         startTime=new Date(cursor.getLong(cursor.getColumnIndex(TrackMyLocationContract.Trip.COLUMN_NAME_START_TIME)));
@@ -42,7 +42,9 @@ public class Trip implements Serializable {
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_TRIP_NAME,tripName);
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_TRIP_DATE,tripDate.getTime());
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_DISTANCE,distance);
-        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_TIME_ELAPSED,timeElapsed);
+        if (timeElapsed!=null){
+            contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_TIME_ELAPSED,timeElapsed.getTime());
+        }
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_MAX_SPEED,maxSpeed);
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_AVG_SPEED,avgSpeed);
         if (startTime!=null){

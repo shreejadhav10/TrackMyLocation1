@@ -66,7 +66,9 @@ public class TripDetailsActivity extends AppCompatActivity {
             mTxtTitle.setText(trip.tripName);
             mTxtTripDate.setText(dateFormatter(trip.tripDate));
             mTxtDistanceCovered.setText(getDistanceInKiloMeter(calculatedDistance));
-            mTxtTimeElapsed.setText(trip.timeElapsed);
+            SimpleDateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+            String strDate = formatter.format(new Date(trip.timeElapsed.getTime()));
+            mTxtTimeElapsed.setText(strDate);
             mTxtMaxSpeed.setText(getSpeedInKMH(trip.maxSpeed));
             mTxtAvgSpeed.setText(getSpeedInKMH(trip.avgSpeed));
             mTxtStartTime.setText(timeFormatter(trip.startTime));

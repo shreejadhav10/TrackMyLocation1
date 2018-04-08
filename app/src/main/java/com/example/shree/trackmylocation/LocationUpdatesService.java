@@ -1,14 +1,21 @@
 package com.example.shree.trackmylocation;
 
 import android.annotation.SuppressLint;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
 import android.os.Binder;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
+import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -23,13 +30,20 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
+
+import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 
 public class LocationUpdatesService extends Service {
     private static final String TAG = "LocationUpdatesService";
@@ -39,6 +53,9 @@ public class LocationUpdatesService extends Service {
     private LocationUpdateCallbacks activityCallbacks;
     private long mTripId;
     private Trip mTrip;
+    private Disposable mLapsedTimeObservable;
+    private Pref mPref;
+    private boolean isPaused = false;
 
     public LocationUpdatesService() {
     }
@@ -46,10 +63,31 @@ public class LocationUpdatesService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        Pref pref = new Pref(getApplicationContext());
-        if (pref.isRecording()) {
+        mPref = new Pref(getApplicationContext());
+        registerReceiver(stopTrackingReceiver,new IntentFilter("ACTION_STOP"));
+        registerReceiver(StartstopTrackingReceiver,new IntentFilter("ACTION_START_STOP"));
+        if (mPref.isRecording()) {
+            getTripDetails();
             startLocationUpdates();
+            createLapsedTimer(mTrip.timeElapsed);
         }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        // TODO: Return the communication channel to the service.
+        return mIBinder;
+
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        return super.onUnbind(intent);
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return super.onStartCommand(intent, flags, startId);
     }
 
     @SuppressLint("MissingPermission")
@@ -60,6 +98,7 @@ public class LocationUpdatesService extends Service {
         locationRequest.setFastestInterval(1000 * 5);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+
     }
 
     /**
@@ -68,6 +107,20 @@ public class LocationUpdatesService extends Service {
      */
     private void stopLocationUpdates() {
         mFusedLocationClient.removeLocationUpdates(locationCallback);
+
+    }
+
+    private void createNewTrip() {
+        mTrip = new Trip();
+        mTrip.tripName = "Trip_" + mPref.getTripNumber();
+        mTrip.tripDate = new Date(System.currentTimeMillis());
+        mTrip.startTime = new Date(System.currentTimeMillis());
+        Date calendar = new Date();
+        calendar.setHours(0);
+        calendar.setMinutes(0);
+        calendar.setSeconds(0);
+        mTrip.timeElapsed = calendar;
+        mTrip.insertIntoDb();
     }
 
     LocationCallback locationCallback = new LocationCallback() {
@@ -75,19 +128,16 @@ public class LocationUpdatesService extends Service {
         public void onLocationResult(LocationResult locationResult) {
             super.onLocationResult(locationResult);
             Toast.makeText(LocationUpdatesService.this, "Update:-" + locationResult.getLastLocation().getLatitude(), Toast.LENGTH_SHORT).show();
-            if (activityCallbacks != null) {
-                activityCallbacks.onLocationUpdate(locationResult.getLastLocation());
-                Observable.just(locationResult.getLocations())
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(Schedulers.io())
-                        .subscribe(new Consumer<List<Location>>() {
-                            @Override
-                            public void accept(List<Location> locations) throws Exception {
-                                insertLocationDetails(locations);
-                                updateTrip();
-                            }
-                        });
-            }
+            Observable.just(locationResult.getLocations())
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(Schedulers.io())
+                    .subscribe(new Consumer<List<Location>>() {
+                        @Override
+                        public void accept(List<Location> locations) throws Exception {
+                            insertLocationDetails(locations);
+                            updateTrip();
+                        }
+                    });
         }
 
         @Override
@@ -100,7 +150,7 @@ public class LocationUpdatesService extends Service {
     private void updateTrip() {
         String maxSpeed = null, avgSpeed = null;
         SQLiteDatabase sqliteDatabase = DatabaseManager.getInstance().openDatabase();
-        String sql = "SELECT MAX(CAST(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED +" AS real)"+ ") as max_speed, AVG(CAST(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED +" AS real)"+ ") as avg_speed "
+        String sql = "SELECT MAX(CAST(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED + " AS real)" + ") as max_speed, AVG(CAST(" + TrackMyLocationContract.TripDetails.COLUMN_NAME_SPEED + " AS real)" + ") as avg_speed "
                 + " FROM " + TrackMyLocationContract.TripDetails.TABLE_NAME
                 + " WHERE " + TrackMyLocationContract.TripDetails.COLUMN_NAME_TRIP_ID + "=" + mTrip._id;
         Cursor cursor = sqliteDatabase.rawQuery(sql, null);
@@ -110,32 +160,23 @@ public class LocationUpdatesService extends Service {
         }
         cursor.close();
 
-
-        String latLong1[]=new String[2];
-
-
-        String sqlGetLastTwoRecords="SELECT latitude ||'#'|| longitude as latLong FROM "+TrackMyLocationContract.TripDetails.TABLE_NAME
-                +" WHERE " + TrackMyLocationContract.TripDetails.COLUMN_NAME_TRIP_ID + "=" + mTrip._id+" ORDER BY _id desc LIMIT 2 ";
-        Cursor cursorDistance=sqliteDatabase.rawQuery(sqlGetLastTwoRecords,null);
-
-        if(cursorDistance.moveToFirst()){
+        String latLong1[] = new String[2];
+        String sqlGetLastTwoRecords = "SELECT latitude ||'#'|| longitude as latLong FROM " + TrackMyLocationContract.TripDetails.TABLE_NAME
+                + " WHERE " + TrackMyLocationContract.TripDetails.COLUMN_NAME_TRIP_ID + "=" + mTrip._id + " ORDER BY _id desc LIMIT 2 ";
+        Cursor cursorDistance = sqliteDatabase.rawQuery(sqlGetLastTwoRecords, null);
+        if (cursorDistance.moveToFirst()) {
             do {
-                latLong1[cursorDistance.getPosition()]=cursorDistance.getString(0);
-            }while (cursor.moveToNext());
+                latLong1[cursorDistance.getPosition()] = cursorDistance.getString(0);
+            } while (cursor.moveToNext());
         }
-
         cursorDistance.close();
 
-        double distance=GetDistanceFromLatLonInKm(latLong1);
-
+        double distance = GetDistanceFromLatLonInKm(latLong1);
         ContentValues contentValues = new ContentValues();
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_MAX_SPEED, maxSpeed);
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_AVG_SPEED, avgSpeed);
         contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_DISTANCE, distance);
         sqliteDatabase.update(TrackMyLocationContract.Trip.TABLE_NAME, contentValues, "_id=" + mTrip._id, null);
-
-
-
         DatabaseManager.getInstance().closeDatabase();
     }
 
@@ -160,16 +201,13 @@ public class LocationUpdatesService extends Service {
         }
     }
 
-    public double GetDistanceFromLatLonInKm(String[] latLong1) {
-        if (latLong1[1]==null)return 0.0;
-
-        String latLongOld[]=latLong1[1].split("#");
-        String latLongNew[]=latLong1[0].split("#");
-
-
+    private double GetDistanceFromLatLonInKm(String[] latLong1) {
+        if (latLong1[1] == null) return 0.0;
+        String latLongOld[] = latLong1[1].split("#");
+        String latLongNew[] = latLong1[0].split("#");
         final int R = 6371;
         // Radius of the earth in km
-        double dLat = deg2rad(Double.parseDouble(latLongNew[0])-Double.parseDouble(latLongOld[0]));
+        double dLat = deg2rad(Double.parseDouble(latLongNew[0]) - Double.parseDouble(latLongOld[0]));
         // deg2rad below
         double dLon = deg2rad(Double.parseDouble(latLongNew[1]) - Double.parseDouble(latLongOld[1]));
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(deg2rad(Double.parseDouble(latLongOld[0]))) * Math.cos(deg2rad(Double.parseDouble(latLongNew[0])) * Math.sin(dLon / 2) * Math.sin(dLon / 2));
@@ -183,18 +221,6 @@ public class LocationUpdatesService extends Service {
         return deg * (Math.PI / 180);
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        return super.onStartCommand(intent, flags, startId);
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        return mIBinder;
-
-    }
-
     public class LocalBinder extends Binder {
         LocationUpdatesService getService() {
             // Return this instance of LocalService so clients can call public methods
@@ -203,32 +229,167 @@ public class LocationUpdatesService extends Service {
 
     }
 
+    private void getTripDetails() {
+        SQLiteDatabase sqLiteDatabase = DatabaseManager.getInstance().openDatabase();
+        String Sql = "SELECT * FROM " + TrackMyLocationContract.Trip.TABLE_NAME
+                + " WHERE " + TrackMyLocationContract.Trip.COLUMN_NAME_END_TIME + "='' OR " + TrackMyLocationContract.Trip.COLUMN_NAME_END_TIME + " IS null";
+        Cursor cursor = sqLiteDatabase.rawQuery(Sql, null);
+        if (cursor.moveToFirst()) {
+            mTrip = new Trip();
+            mTrip.parseCursor(cursor);
+        }
+    }
+
+    private void createLapsedTimer(final Date defaultDate) {
+        mLapsedTimeObservable = Observable.interval(1, TimeUnit.SECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        if (!isPaused) {
+                            defaultDate.setSeconds(defaultDate.getSeconds() + 1);
+                            SimpleDateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+                            String strDate = formatter.format(new Date(defaultDate.getTime()));
+                            updateElapsedTime(defaultDate);
+                            //TODO
+                            if (activityCallbacks != null) {
+                                activityCallbacks.onLocationUpdate(strDate);
+                            } else {
+                                showNotification(strDate);
+                            }
+                        }
+                    }
+                });
+    }
+
+    private void showNotification(String strDate) {
+        Intent intent = new Intent(getApplicationContext(), TrackActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 1000, intent, FLAG_UPDATE_CURRENT);
+
+        Intent playPauseIntent = new Intent("ACTION_START_STOP");
+
+        Intent stopIntent = new Intent("ACTION_STOP");
+        stopIntent.putExtra("action","action_stop");
+        PendingIntent stopPendingIntent = PendingIntent.getBroadcast(getApplicationContext(), 1000, stopIntent, FLAG_UPDATE_CURRENT);
+
+        int drawableId;
+        String playTitle;
+        if (!isPaused) {
+            drawableId = android.R.drawable.ic_media_pause;
+            playTitle = "Pause";
+            playPauseIntent.putExtra("action", "action_pause");
+        } else {
+            drawableId = android.R.drawable.ic_media_play;
+            playPauseIntent.putExtra("action", "action_resume");
+            playTitle = "Resume";
+
+        }
+        PendingIntent playPausePendingIntent = PendingIntent.getBroadcast(getApplicationContext(), 1000, playPauseIntent, FLAG_UPDATE_CURRENT);
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext(), "1")
+                .setSmallIcon(R.drawable.ic_location_on_black_24dp)
+                .setContentTitle("Tracking ...")
+                .setContentText(strDate)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent)
+                .addAction(drawableId, playTitle, playPausePendingIntent)
+                .addAction(R.drawable.ic_stop_black_24dp, "Stop", stopPendingIntent);
+
+        NotificationManagerCompat notificationManagerCompat = NotificationManagerCompat.from(getApplicationContext());
+        notificationManagerCompat.notify(1, mBuilder.build());
+    }
+
+    private void updateElapsedTime(Date defaultDate) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_TIME_ELAPSED, defaultDate.getTime());
+        SQLiteDatabase sqLiteDatabase = DatabaseManager.getInstance().openDatabase();
+        sqLiteDatabase.update(TrackMyLocationContract.Trip.TABLE_NAME, contentValues, "_id=" + mTrip._id, null);
+        DatabaseManager.getInstance().closeDatabase();
+    }
+
+    public void endTrip() {
+        stopLocationUpdates();
+        mLapsedTimeObservable.dispose();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(TrackMyLocationContract.Trip.COLUMN_NAME_END_TIME, new Date(System.currentTimeMillis()).getTime());
+        SQLiteDatabase sqLiteDatabase = DatabaseManager.getInstance().openDatabase();
+        sqLiteDatabase.update(TrackMyLocationContract.Trip.TABLE_NAME, contentValues, "_id=" + mTrip._id, null);
+        DatabaseManager.getInstance().closeDatabase();
+        mTrip = null;
+        mPref.setIsRecording(false);
+        NotificationManagerCompat notificationManagerCompat = NotificationManagerCompat.from(getApplicationContext());
+        notificationManagerCompat.cancel(1);
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
-
+        unregisterReceiver(stopTrackingReceiver);
+        unregisterReceiver(StartstopTrackingReceiver);
     }
 
-    public int getRandomNumber() {
-        return mRandom.nextInt(1);
-    }
 
-    public void setTripDetails(Trip trip) {
-        mTrip = trip;
-    }
-
-    public void startTracking(Trip trip) {
-        mTrip = trip;
+    public void startTracking() {
+        isPaused = false;
+        if (mTrip == null) {
+            createNewTrip();
+        }
+        createLapsedTimer(mTrip.timeElapsed);
         startLocationUpdates();
     }
 
-    public void stopTracking() {
+
+    public void pauseTracking() {
+        isPaused = true;
+        mLapsedTimeObservable.dispose();
+        mTrip.timeElapsed.setSeconds(mTrip.timeElapsed.getSeconds());
+        SimpleDateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+        String strDate = formatter.format(new Date(mTrip.timeElapsed.getTime()));
+        showNotification(strDate);
         stopLocationUpdates();
     }
 
-    public void pauseTracking() {
+    BroadcastReceiver stopTrackingReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.hasExtra("action")) {
+                String action = intent.getExtras().getString("action");
+                if (TextUtils.equals(action, "action_pause")) {
+                    Toast.makeText(context, "On Pause", Toast.LENGTH_SHORT).show();
+                    pauseTracking();
+                } else if (TextUtils.equals(action, "action_resume")) {
+                    Toast.makeText(context, "On Resume", Toast.LENGTH_SHORT).show();
+                    startTracking();
+                }else if (TextUtils.equals(action,"action_stop")){
+                    Toast.makeText(context, "On Stop", Toast.LENGTH_SHORT).show();
+                    endTrip();
+                }
 
-    }
+            }
+        }
+    };
+
+    BroadcastReceiver StartstopTrackingReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.hasExtra("action")) {
+                String action = intent.getExtras().getString("action");
+                if (TextUtils.equals(action, "action_pause")) {
+                    Toast.makeText(context, "On Pause", Toast.LENGTH_SHORT).show();
+                    pauseTracking();
+                } else if (TextUtils.equals(action, "action_resume")) {
+                    Toast.makeText(context, "On Resume", Toast.LENGTH_SHORT).show();
+                    startTracking();
+                }else if (TextUtils.equals(action,"action_stop")){
+                    Toast.makeText(context, "On Stop", Toast.LENGTH_SHORT).show();
+                    endTrip();
+                }
+
+            }
+        }
+    };
 
     public void setCallbacks(LocationUpdateCallbacks locationUpdateCallbacks) {
         this.activityCallbacks = locationUpdateCallbacks;
@@ -237,7 +398,9 @@ public class LocationUpdatesService extends Service {
     public interface LocationUpdateCallbacks {
         void onStartTracking();
 
-        void onLocationUpdate(Location location);
+        void onLocationUpdate(String elapasedTime);
+
+        void onPauseLocationUpdate();
 
         void onStopTracking();
 

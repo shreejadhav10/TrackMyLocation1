@@ -1,20 +1,24 @@
 package com.example.shree.trackmylocation;
 
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.shree.trackmylocation.pref.Pref;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -51,6 +55,9 @@ public class TrackActivity extends AppCompatActivity implements LocationUpdatesS
         if (mPref.isRecording()){
             mFabStart.setTag("2");
         }
+
+        registerReceiver(stopTrackingReceiver,new IntentFilter("ACTION_STOP"));
+
 
     }
 
@@ -141,6 +148,7 @@ public class TrackActivity extends AppCompatActivity implements LocationUpdatesS
     protected void onDestroy() {
         super.onDestroy();
         unbindService(mServiceConnection);
+        unregisterReceiver(stopTrackingReceiver);
     }
 
     @Override
@@ -166,6 +174,19 @@ public class TrackActivity extends AppCompatActivity implements LocationUpdatesS
             finish();
         }
     }
+
+    BroadcastReceiver stopTrackingReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.hasExtra("action")) {
+                String action = intent.getExtras().getString("action");
+                if (TextUtils.equals(action,"action_stop")){
+                    finish();
+                }
+
+            }
+        }
+    };
 
 
 }
